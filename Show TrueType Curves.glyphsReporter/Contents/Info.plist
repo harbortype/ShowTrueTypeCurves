@@ -17,7 +17,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>UpdateFeedURL</key>
-	<string>https://raw.githubusercontent.com/harbortype/ShowTrueTypeCurves/master/Show%20TrueType%20Curves.glyphsReporter/Contents/Info.plist</string>
+	<string>https://raw.githubusercontent.com/harbortype/ShowTrueTypeCurves/main/Show%20TrueType%20Curves.glyphsReporter/Contents/Info.plist</string>
 	<key>productPageURL</key>
 	<string>https://github.com/harbortype/ShowTrueTypeCurves</string>
 	<key>productReleaseNotes</key>
