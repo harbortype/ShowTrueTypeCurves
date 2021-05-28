@@ -31,6 +31,9 @@ class showTrueTypeCurves(ReporterPlugin):
 		NSUserDefaults.standardUserDefaults().registerDefaults_({
 				"com.harbortype.showTrueTypeCurves.useVariableConversion": 1,
 			})
+		self.lastChange = None
+		self.currentLayer = None
+		self.currentGlyph = None
 
 
 	@objc.python_method 
@@ -84,6 +87,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		oldSetting = bool(Glyphs.defaults[pref])
 		Glyphs.defaults[pref] = int(not oldSetting)
 		self.refreshView()
+		self.lastChange = None
 
 
 	@objc.python_method 
@@ -176,18 +180,25 @@ class showTrueTypeCurves(ReporterPlugin):
 		if not layer.paths:
 			return
 
-		if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useVariableConversion"]:
-			dummyGlyph = glyph.duplicate()
-			dummyGlyph.convertToCompatibleTrueTypeWithError_error_(0.6, None)
-			dummyLayer = dummyGlyph.layers[layer.layerId]
-			for p, dummyPath in enumerate(dummyLayer.paths):
-				self.drawTrueTypeCurves(dummyPath, scale)
+		# Only converts to quadratic if the glyph or the current layer was changed
+		if glyph.lastChange != self.lastChange or layer.layerId != self.currentLayer or glyph.name != self.currentGlyph:
+			if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useVariableConversion"]:
+				dummyGlyph = glyph.duplicate()
+				dummyGlyph.convertToCompatibleTrueTypeWithError_error_(0.6, None)
+				self.trueTypePaths = dummyGlyph.layers[layer.layerId].paths
+			else:
+				self.trueTypePaths = []
+				for path in layer.paths:
+					dummyPath = path.copy()
+					dummyPath.convertToQuadratic()
+					self.trueTypePaths.append(dummyPath)
+			self.lastChange = glyph.lastChange
+			self.currentLayer = layer.layerId
+			self.currentGlyph = glyph.name
 
-		else:
-			for p, path in enumerate(layer.paths):
-				dummyPath = path.copy()
-				dummyPath.convertToQuadratic()
-				self.drawTrueTypeCurves(dummyPath, scale)
+		# Draw the quadratic paths
+		for path in self.trueTypePaths:
+			self.drawTrueTypeCurves(path, scale)
 
 
 	@objc.python_method 
