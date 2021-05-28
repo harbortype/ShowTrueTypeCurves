@@ -1,8 +1,9 @@
 # encoding: utf-8
 from __future__ import division, print_function, unicode_literals
-import objc, math, traceback
+import objc, traceback
 from GlyphsApp import *
 from GlyphsApp.plugins import *
+from Foundation import NSMenuItem
 ###########################################################################################################
 #
 #
@@ -27,6 +28,62 @@ class showTrueTypeCurves(ReporterPlugin):
 		})
 		self.thisMenuTitle = {"name": u"%s:" % self.menuName, "action": None }
 		self.masterIds = []
+		NSUserDefaults.standardUserDefaults().registerDefaults_({
+				"com.harbortype.showTrueTypeCurves.useVariableConversion": 1,
+			})
+
+
+	@objc.python_method 
+	def conditionalContextMenus(self):
+		return [
+			{
+				'name': Glyphs.localize({
+					'en': u"Show TrueType Curves:",
+					'pt': u"Exibir Curvas TrueType:",
+					}), 
+				'action': None,
+			},
+			{
+				'name': Glyphs.localize({
+					'en': u"Use variable font conversion", 
+					'pt': u"Usar conversão para fontes variáveis", 
+					}), 
+				'action': self.toggleVariableConversion_,
+				'state': Glyphs.defaults["com.harbortype.showTrueTypeCurves.useVariableConversion"],
+			},
+		]
+
+	@objc.python_method 
+	def addMenuItemsForEvent_toMenu_(self, event, contextMenu):
+		'''
+		The event can tell you where the user had clicked.
+		'''
+		try:
+			
+			if self.generalContextMenus:
+				setUpMenuHelper(contextMenu, self.generalContextMenus, self)
+			
+			newSeparator = NSMenuItem.separatorItem()
+			contextMenu.addItem_(newSeparator)
+			
+			contextMenus = self.conditionalContextMenus()
+			if contextMenus:
+				setUpMenuHelper(contextMenu, contextMenus, self)
+		
+		except Exception as e:
+			NSLog(traceback.format_exc())
+
+
+	def toggleVariableConversion_(self, sender):
+		self.toggleSetting_("useVariableConversion")
+
+	
+	@objc.python_method 
+	def toggleSetting_(self, prefName):
+		pref = "com.harbortype.showTrueTypeCurves.%s" % (prefName)
+		oldSetting = bool(Glyphs.defaults[pref])
+		Glyphs.defaults[pref] = int(not oldSetting)
+		self.refreshView()
 
 
 	@objc.python_method 
@@ -113,11 +170,19 @@ class showTrueTypeCurves(ReporterPlugin):
 
 		if not layer.paths:
 			return
-		
-		for p, path in enumerate(layer.paths):
-			dummyPath = path.copy()
-			dummyPath.convertToQuadratic()
-			self.drawTrueTypeCurves(dummyPath, scale)
+
+		if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useVariableConversion"]:
+			dummyGlyph = glyph.duplicate()
+			dummyGlyph.convertToCompatibleTrueTypeWithError_error_(0.6, None)
+			dummyLayer = dummyGlyph.layers[layer.layerId]
+			for p, dummyPath in enumerate(dummyLayer.paths):
+				self.drawTrueTypeCurves(dummyPath, scale)
+
+		else:
+			for p, path in enumerate(layer.paths):
+				dummyPath = path.copy()
+				dummyPath.convertToQuadratic()
+				self.drawTrueTypeCurves(dummyPath, scale)
 
 
 	@objc.python_method 
