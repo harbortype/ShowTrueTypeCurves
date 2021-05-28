@@ -159,6 +159,11 @@ class showTrueTypeCurves(ReporterPlugin):
 	@objc.python_method 
 	def backgroundInViewCoords(self, layer=None):
 		""" Draw stuff in the background """
+		
+		# Execute only if there are selected layers
+		if not Glyphs.font.selectedLayers:
+			return
+		
 		layer = Glyphs.font.selectedLayers[0]
 		self.masterIds = self.getMasterIDs(layer)
 		scale = self.getScale()
