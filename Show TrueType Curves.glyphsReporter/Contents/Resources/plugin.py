@@ -24,7 +24,6 @@ class showTrueTypeCurves(ReporterPlugin):
 		self.menuName = Glyphs.localize({
 			'en': u'TrueType Curves',
 			'pt': u'Curvas TrueType',
-
 		})
 		self.thisMenuTitle = {"name": u"%s:" % self.menuName, "action": None }
 		self.masterIds = []
@@ -62,7 +61,7 @@ class showTrueTypeCurves(ReporterPlugin):
 
 
 	@objc.python_method 
-	def drawTrueTypeCurves(self, layer, path, scale):
+	def drawTrueTypeCurves(self, path, scale):
 		radius = 2.5
 		currentTab = Glyphs.font.currentTab
 		origin = currentTab.selectedLayerOrigin
@@ -108,19 +107,17 @@ class showTrueTypeCurves(ReporterPlugin):
 		scale = self.getScale()
 		handleSize = self.getHandleSize()
 		glyph = layer.parent
-		# if len(self.masterIds) <= 1:
-		# 	return
+		
 		if layer.layerId not in self.masterIds:
 			return
-		# if len(Glyphs.font.masters) > 1 and not glyph.mastersCompatible:
-		# 	return
+
 		if not layer.paths:
 			return
 		
 		for p, path in enumerate(layer.paths):
 			dummyPath = path.copy()
 			dummyPath.convertToQuadratic()
-			self.drawTrueTypeCurves(layer, dummyPath, scale)
+			self.drawTrueTypeCurves(dummyPath, scale)
 
 
 	@objc.python_method 
