@@ -29,6 +29,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		self.thisMenuTitle = {"name": u"%s:" % self.menuName, "action": None }
 		self.masterIds = []
 		NSUserDefaults.standardUserDefaults().registerDefaults_({
+				"com.harbortype.showTrueTypeCurves.drawOutlines": 0,
 				"com.harbortype.showTrueTypeCurves.useVariableConversion": 0,
 			})
 		self.lastOperation = None
@@ -45,6 +46,14 @@ class showTrueTypeCurves(ReporterPlugin):
 					'pt': u"Exibir Curvas TrueType:",
 					}), 
 				'action': None,
+			},
+			{
+				'name': Glyphs.localize({
+					'en': u"Draw outlines", 
+					'pt': u"Desenhar contornos", 
+					}), 
+				'action': self.toggleDrawOutlines_,
+				'state': Glyphs.defaults["com.harbortype.showTrueTypeCurves.drawOutlines"],
 			},
 			{
 				'name': Glyphs.localize({
@@ -79,6 +88,10 @@ class showTrueTypeCurves(ReporterPlugin):
 
 	def toggleVariableConversion_(self, sender):
 		self.toggleSetting_("useVariableConversion")
+
+	
+	def toggleDrawOutlines_(self, sender):
+		self.toggleSetting_("drawOutlines")
 
 	
 	@objc.python_method 
@@ -140,6 +153,14 @@ class showTrueTypeCurves(ReporterPlugin):
 		diameter = radius * 2 / scale
 		lineWidth = 1 / scale
 		currentTab = Glyphs.font.currentTab
+
+		# Draw the outlines
+		if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.drawOutlines"]:
+			# tempPath = path.copy()
+			outline = path.bezierPath
+			outline.setLineWidth_(lineWidth)
+			NSColor.colorWithCalibratedRed_green_blue_alpha_(.8, .1, .1, .8).set()
+			outline.stroke()
 
 		# Get the nodes
 		for node in path.nodes:
