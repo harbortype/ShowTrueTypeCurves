@@ -13,15 +13,15 @@
 	<key>CFBundleName</key>
 	<string>Show TrueType Curves</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
+	<string>3</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1</string>
+	<string>1.2</string>
 	<key>UpdateFeedURL</key>
 	<string>https://raw.githubusercontent.com/harbortype/ShowTrueTypeCurves/main/Show%20TrueType%20Curves.glyphsReporter/Contents/Info.plist</string>
 	<key>productPageURL</key>
 	<string>https://github.com/harbortype/ShowTrueTypeCurves</string>
 	<key>productReleaseNotes</key>
-	<string>Add option for previewing compatible quadratic curves, the same as when exporting a variable font.</string>
+	<string>Implements reading the TrueType Curve Error custom parameter and bug fixes.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright, Harbor Type, 2021</string>
 	<key>NSPrincipalClass</key>
