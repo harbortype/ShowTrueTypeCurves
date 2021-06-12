@@ -183,8 +183,11 @@ class showTrueTypeCurves(ReporterPlugin):
 		# Only converts to quadratic if the glyph or the current layer was changed
 		if glyph.lastOperation() != self.lastOperation or layer.layerId != self.currentLayer or glyph.name != self.currentGlyph:
 			if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useVariableConversion"]:
+				curveError = 0.6 # default
+				if Glyphs.font.customParameters["TrueType Curve Error"] is not None:
+					curveError = float(Glyphs.font.customParameters["TrueType Curve Error"])
 				dummyGlyph = glyph.duplicate()
-				dummyGlyph.convertToCompatibleTrueTypeWithError_error_(0.6, None)
+				dummyGlyph.convertToCompatibleTrueTypeWithError_error_(curveError, None)
 				self.trueTypePaths = dummyGlyph.layers[layer.layerId].paths
 				del(Glyphs.font.glyphs[dummyGlyph.name])
 			else:
