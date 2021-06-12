@@ -186,6 +186,7 @@ class showTrueTypeCurves(ReporterPlugin):
 				dummyGlyph = glyph.duplicate()
 				dummyGlyph.convertToCompatibleTrueTypeWithError_error_(0.6, None)
 				self.trueTypePaths = dummyGlyph.layers[layer.layerId].paths
+				del(Glyphs.font.glyphs[dummyGlyph.name])
 			else:
 				self.trueTypePaths = []
 				for path in layer.paths:
