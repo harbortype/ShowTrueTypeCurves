@@ -31,7 +31,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		NSUserDefaults.standardUserDefaults().registerDefaults_({
 				"com.harbortype.showTrueTypeCurves.useVariableConversion": 0,
 			})
-		self.lastChange = None
+		self.lastOperation = None
 		self.currentLayer = None
 		self.currentGlyph = None
 
@@ -87,7 +87,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		oldSetting = bool(Glyphs.defaults[pref])
 		Glyphs.defaults[pref] = int(not oldSetting)
 		self.refreshView()
-		self.lastChange = None
+		self.lastOperation = None
 
 
 	@objc.python_method 
@@ -181,7 +181,7 @@ class showTrueTypeCurves(ReporterPlugin):
 			return
 
 		# Only converts to quadratic if the glyph or the current layer was changed
-		if glyph.lastChange != self.lastChange or layer.layerId != self.currentLayer or glyph.name != self.currentGlyph:
+		if glyph.lastOperation() != self.lastOperation or layer.layerId != self.currentLayer or glyph.name != self.currentGlyph:
 			if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useVariableConversion"]:
 				dummyGlyph = glyph.duplicate()
 				dummyGlyph.convertToCompatibleTrueTypeWithError_error_(0.6, None)
@@ -192,7 +192,7 @@ class showTrueTypeCurves(ReporterPlugin):
 					dummyPath = path.copy()
 					dummyPath.convertToQuadratic()
 					self.trueTypePaths.append(dummyPath)
-			self.lastChange = glyph.lastChange
+			self.lastOperation = glyph.lastOperation()
 			self.currentLayer = layer.layerId
 			self.currentGlyph = glyph.name
 
