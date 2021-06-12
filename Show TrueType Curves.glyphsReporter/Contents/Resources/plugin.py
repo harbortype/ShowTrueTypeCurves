@@ -136,8 +136,10 @@ class showTrueTypeCurves(ReporterPlugin):
 	@objc.python_method 
 	def drawTrueTypeCurves(self, path, scale):
 		radius = 2.5
+		radiusScale = radius / scale
+		diameter = radius * 2 / scale
+		lineWidth = 1 / scale
 		currentTab = Glyphs.font.currentTab
-		origin = currentTab.selectedLayerOrigin
 
 		# Get the nodes
 		for node in path.nodes:
@@ -146,14 +148,13 @@ class showTrueTypeCurves(ReporterPlugin):
 			y = node.position.y
 			dx = nextNode.position.x - x
 			dy = nextNode.position.y - y
-			offcurvePosition = NSPoint( (x+dx) * scale + origin[0], (y+dy) * scale + origin[1] )
+			offcurvePosition = NSPoint(x+dx, y+dy)
 
 			# Draw line
-			# NSColor.colorWithCalibratedRed_green_blue_alpha_(1, .8, .75, 1).set()
 			NSColor.colorWithCalibratedRed_green_blue_alpha_(.8, .8, .8, .8).set()
 			line = NSBezierPath.bezierPath()
-			line.setLineWidth_(1)
-			line.moveToPoint_( NSPoint( (node.position.x) * scale + origin[0], (node.position.y) * scale + origin[1] ) )
+			line.setLineWidth_(lineWidth)
+			line.moveToPoint_( NSPoint(node.position.x, node.position.y) )
 			line.lineToPoint_(offcurvePosition)
 			line.stroke()
 			
@@ -162,9 +163,9 @@ class showTrueTypeCurves(ReporterPlugin):
 
 			# Draw nodes
 			circle = NSRect()
-			circle.size = NSSize(radius * 2 , radius * 2)
-			circle.origin = NSPoint( (node.position.x) * scale + origin[0] - radius, (node.position.y) * scale + origin[1] - radius )
-			NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(circle, radius, radius).fill()
+			circle.size = NSSize(diameter, diameter)
+			circle.origin = NSPoint(node.position.x - radiusScale , node.position.y - radiusScale)
+			NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(circle, radiusScale, radiusScale).fill()
 		
 
 	@objc.python_method 
@@ -173,7 +174,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		pass
 
 	@objc.python_method 
-	def backgroundInViewCoords(self, layer=None):
+	def background(self, layer=None):
 		""" Draw stuff in the background """
 		
 		# Execute only if there are selected layers
