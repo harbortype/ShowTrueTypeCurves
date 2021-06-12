@@ -13,7 +13,7 @@
 	<key>CFBundleName</key>
 	<string>Show TrueType Curves</string>
 	<key>CFBundleVersion</key>
-	<string>3</string>
+	<string>4</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.2</string>
 	<key>UpdateFeedURL</key>
@@ -21,7 +21,7 @@
 	<key>productPageURL</key>
 	<string>https://github.com/harbortype/ShowTrueTypeCurves</string>
 	<key>productReleaseNotes</key>
-	<string>Implements reading the TrueType Curve Error custom parameter and bug fixes.</string>
+	<string>Implements drawing the outline, reading the TrueType Curve Error custom parameter and fixes some bugs.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright, Harbor Type, 2021</string>
 	<key>NSPrincipalClass</key>
