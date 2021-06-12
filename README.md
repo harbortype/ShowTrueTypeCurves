@@ -4,7 +4,7 @@ This is a plugin for the [Glyphs font editor](https://glyphsapp.com/).
 
 This reporter plugin draws the contents of the active layer as quadratic curves in the background. This will give you an idea of how the points will be when exporting as TTF.
 
-<img src="images/showTrueTypeCurves2.png" width="720" height="336">
+<img src="images/showTrueTypeCurves.png" width="720" height="336">
 
 You will find additional options in the context menu (ctrl+click or right click):
 
