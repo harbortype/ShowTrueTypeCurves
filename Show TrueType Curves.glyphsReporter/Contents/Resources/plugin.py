@@ -29,7 +29,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		self.thisMenuTitle = {"name": u"%s:" % self.menuName, "action": None }
 		self.masterIds = []
 		NSUserDefaults.standardUserDefaults().registerDefaults_({
-				"com.harbortype.showTrueTypeCurves.drawOutlines": 0,
+				"com.harbortype.showTrueTypeCurves.drawOutlines": 1,
 				"com.harbortype.showTrueTypeCurves.useVariableConversion": 0,
 			})
 		self.lastOperation = None
