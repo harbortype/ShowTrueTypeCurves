@@ -20,7 +20,7 @@ from Foundation import NSMenuItem
 
 class showTrueTypeCurves(ReporterPlugin):
 
-	@objc.python_method 
+	@objc.python_method
 	def settings(self):
 		self.menuName = Glyphs.localize({
 			'en': u'TrueType Curves',
@@ -37,7 +37,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		self.currentGlyph = None
 
 
-	@objc.python_method 
+	@objc.python_method
 	def conditionalContextMenus(self):
 		return [
 			{
@@ -65,7 +65,7 @@ class showTrueTypeCurves(ReporterPlugin):
 			},
 		]
 
-	@objc.python_method 
+	@objc.python_method
 	def addMenuItemsForEvent_toMenu_(self, event, contextMenu):
 		'''
 		The event can tell you where the user had clicked.
@@ -94,7 +94,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		self.toggleSetting_("drawOutlines")
 
 	
-	@objc.python_method 
+	@objc.python_method
 	def toggleSetting_(self, prefName):
 		pref = "com.harbortype.showTrueTypeCurves.%s" % (prefName)
 		oldSetting = bool(Glyphs.defaults[pref])
@@ -103,7 +103,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		self.lastOperation = None
 
 
-	@objc.python_method 
+	@objc.python_method
 	def refreshView(self):
 		try:
 			Glyphs = NSApplication.sharedApplication()
@@ -114,7 +114,7 @@ class showTrueTypeCurves(ReporterPlugin):
 			pass
 
 
-	@objc.python_method 
+	@objc.python_method
 	def getHandleSize(self):
 		""" Get the handle size in scale """
 		handleSizes = (5, 8, 12)
@@ -123,7 +123,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		return handleSize
 
 
-	@objc.python_method 
+	@objc.python_method
 	def getMasterIDs(self, layer):
 		""" Get the masters and special layers IDs """
 		masterIds = set()
@@ -146,7 +146,7 @@ class showTrueTypeCurves(ReporterPlugin):
 			return False
 
 
-	@objc.python_method 
+	@objc.python_method
 	def drawTrueTypeCurves(self, path, scale):
 		radius = 2.5
 		radiusScale = radius / scale
@@ -189,12 +189,12 @@ class showTrueTypeCurves(ReporterPlugin):
 			NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(circle, radiusScale, radiusScale).fill()
 		
 
-	@objc.python_method 
+	@objc.python_method
 	def foregroundInViewCoords(self, layer=None): 
 		""" Draw stuff on the screen """
 		pass
 
-	@objc.python_method 
+	@objc.python_method
 	def background(self, layer=None):
 		""" Draw stuff in the background """
 		
@@ -242,7 +242,7 @@ class showTrueTypeCurves(ReporterPlugin):
 			self.drawTrueTypeCurves(path, scale)
 
 
-	@objc.python_method 
+	@objc.python_method
 	def __file__(self):
 		"""Please leave this method unchanged"""
 		return __file__
