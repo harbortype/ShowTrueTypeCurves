@@ -15,6 +15,10 @@ from Foundation import NSMenuItem
 #
 ###########################################################################################################
 
+HANDLE_SIZES = (5, 8, 12)   # maps to Glyphs handleSize 0/1/2
+DEFAULT_CURVE_ERROR = 0.6   # fallback when no TrueType Curve Error custom parameter is set
+NODE_RADIUS = 2.5           # display radius of off-curve node circles (unscaled)
+
 
 
 
@@ -27,7 +31,6 @@ class showTrueTypeCurves(ReporterPlugin):
 			'pt': u'Curvas TrueType',
 		})
 		self.thisMenuTitle = {"name": u"%s:" % self.menuName, "action": None }
-		self.masterIds = []
 		NSUserDefaults.standardUserDefaults().registerDefaults_({
 				"com.harbortype.showTrueTypeCurves.drawOutlines": 1,
 				"com.harbortype.showTrueTypeCurves.useVariableConversion": 0,
@@ -117,8 +120,8 @@ class showTrueTypeCurves(ReporterPlugin):
 	@objc.python_method
 	def refreshView(self):
 		try:
-			Glyphs = NSApplication.sharedApplication()
-			currentTabView = Glyphs.font.currentTab
+			app = NSApplication.sharedApplication()
+			currentTabView = app.font.currentTab
 			if currentTabView:
 				currentTabView.graphicView().setNeedsDisplay_(True)
 		except Exception as e:
@@ -128,9 +131,7 @@ class showTrueTypeCurves(ReporterPlugin):
 	@objc.python_method
 	def getHandleSize(self):
 		""" Get the handle size in scale """
-		handleSizes = (5, 8, 12)
-		handleSizeIndex = Glyphs.handleSize
-		handleSize = handleSizes[handleSizeIndex] * self.getScale() ** 0.1 # scaled diameter
+		handleSize = HANDLE_SIZES[Glyphs.handleSize] * self.getScale() ** 0.1 # scaled diameter
 		return handleSize
 
 
@@ -145,23 +146,29 @@ class showTrueTypeCurves(ReporterPlugin):
 		return list(masterIds)
 
 
+	@objc.python_method
+	def _getActiveTool(self):
+		""" Return the active tool delegate, or None if unavailable """
+		currentController = self.controller.view().window().windowController()
+		if currentController:
+			return currentController.toolDrawDelegate()
+		return None
+
 	def conditionsAreMetForDrawing(self):
-			""" Check if the text or hand tools are active """
-			currentController = self.controller.view().window().windowController()
-			if currentController:
-				tool = currentController.toolDrawDelegate()
-				textToolIsActive = tool.isKindOfClass_( NSClassFromString("GlyphsToolText") )
-				handToolIsActive = tool.isKindOfClass_( NSClassFromString("GlyphsToolHand") )
-				if not textToolIsActive and not handToolIsActive:
-					return True
-			return False
+		""" Check if the text or hand tools are active """
+		tool = self._getActiveTool()
+		if tool:
+			textToolIsActive = tool.isKindOfClass_(NSClassFromString("GlyphsToolText"))
+			handToolIsActive = tool.isKindOfClass_(NSClassFromString("GlyphsToolHand"))
+			if not textToolIsActive and not handToolIsActive:
+				return True
+		return False
 
 
 	def _isPreviewToolActive(self):
 		""" Returns True if hand or text tool is active (both show TT preview) """
-		currentController = self.controller.view().window().windowController()
-		if currentController:
-			tool = currentController.toolDrawDelegate()
+		tool = self._getActiveTool()
+		if tool:
 			handToolIsActive = tool.isKindOfClass_(NSClassFromString("GlyphsToolHand"))
 			textToolIsActive = tool.isKindOfClass_(NSClassFromString("GlyphsToolText"))
 			return handToolIsActive or textToolIsActive
@@ -176,7 +183,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		lastOp, paths = self.trueTypePathsCache.get(cacheKey, (None, None))
 		if glyph.lastOperation() != lastOp or paths is None:
 			if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useVariableConversion"]:
-				curveError = 0.6
+				curveError = DEFAULT_CURVE_ERROR
 				if Glyphs.font.customParameters["TrueType Curve Error"] is not None:
 					curveError = float(Glyphs.font.customParameters["TrueType Curve Error"])
 				dummyGlyph = glyph.duplicate()
@@ -195,15 +202,13 @@ class showTrueTypeCurves(ReporterPlugin):
 
 	@objc.python_method
 	def drawTrueTypeCurves(self, path, scale):
-		radius = 2.5
-		radiusScale = radius / scale
-		diameter = radius * 2 / scale
+		radiusScale = NODE_RADIUS / scale
+		diameter = NODE_RADIUS * 2 / scale
 		lineWidth = 1 / scale
 		currentTab = Glyphs.font.currentTab
 
 		# Draw the outlines
 		if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.drawOutlines"]:
-			# tempPath = path.copy()
 			outline = path.bezierPath
 			outline.setLineWidth_(lineWidth)
 			NSColor.colorWithCalibratedRed_green_blue_alpha_(.8, .1, .1, .8).set()
@@ -301,10 +306,10 @@ class showTrueTypeCurves(ReporterPlugin):
 			if not self.conditionsAreMetForDrawing():
 				return
 
-		self.masterIds = self.getMasterIDs(layer)
+		masterIds = self.getMasterIDs(layer)
 		scale = self.getScale()
 
-		if layer.layerId not in self.masterIds:
+		if layer.layerId not in masterIds:
 			return
 
 		if not layer.paths:
