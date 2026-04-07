@@ -31,6 +31,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		NSUserDefaults.standardUserDefaults().registerDefaults_({
 				"com.harbortype.showTrueTypeCurves.drawOutlines": 1,
 				"com.harbortype.showTrueTypeCurves.useVariableConversion": 0,
+				"com.harbortype.showTrueTypeCurves.useForPreview": 0,
 			})
 		self.lastOperation = None
 		self.currentLayer = None
@@ -57,11 +58,19 @@ class showTrueTypeCurves(ReporterPlugin):
 			},
 			{
 				'name': Glyphs.localize({
-					'en': u"Use variable font conversion", 
-					'pt': u"Usar conversão para fontes variáveis", 
-					}), 
+					'en': u"Use variable font conversion",
+					'pt': u"Usar conversão para fontes variáveis",
+					}),
 				'action': self.toggleVariableConversion_,
 				'state': Glyphs.defaults["com.harbortype.showTrueTypeCurves.useVariableConversion"],
+			},
+			{
+				'name': Glyphs.localize({
+					'en': u"Use TrueType outlines for preview",
+					'pt': u"Usar contornos TrueType na visualização",
+					}),
+				'action': self.toggleUseForPreview_,
+				'state': Glyphs.defaults["com.harbortype.showTrueTypeCurves.useForPreview"],
 			},
 		]
 
@@ -89,9 +98,13 @@ class showTrueTypeCurves(ReporterPlugin):
 	def toggleVariableConversion_(self, sender):
 		self.toggleSetting_("useVariableConversion")
 
-	
+
 	def toggleDrawOutlines_(self, sender):
 		self.toggleSetting_("drawOutlines")
+
+
+	def toggleUseForPreview_(self, sender):
+		self.toggleSetting_("useForPreview")
 
 	
 	@objc.python_method
@@ -141,9 +154,17 @@ class showTrueTypeCurves(ReporterPlugin):
 				tool = currentController.toolDrawDelegate()
 				textToolIsActive = tool.isKindOfClass_( NSClassFromString("GlyphsToolText") )
 				handToolIsActive = tool.isKindOfClass_( NSClassFromString("GlyphsToolHand") )
-				if not textToolIsActive and not handToolIsActive: 
+				if not textToolIsActive and not handToolIsActive:
 					return True
 			return False
+
+
+	def _isHandToolActive(self):
+		currentController = self.controller.view().window().windowController()
+		if currentController:
+			tool = currentController.toolDrawDelegate()
+			return tool.isKindOfClass_(NSClassFromString("GlyphsToolHand"))
+		return False
 
 
 	@objc.python_method
@@ -190,27 +211,42 @@ class showTrueTypeCurves(ReporterPlugin):
 		
 
 	@objc.python_method
-	def foregroundInViewCoords(self, layer=None): 
+	def drawTrueTypePreview(self, paths):
+		graphicView = self.controller.graphicView()
+		fillColor = graphicView.foregroundColor()
+		fillColor.set()
+		for path in paths:
+			bezier = path.bezierPath
+			bezier.fill()
+
+
+	@objc.python_method
+	def foregroundInViewCoords(self, layer=None):
 		""" Draw stuff on the screen """
 		pass
 
 	@objc.python_method
 	def background(self, layer=None):
 		""" Draw stuff in the background """
-		
+
 		# Execute only if there are selected layers
 		if not Glyphs.font.selectedLayers:
 			return
 
-		if not self.conditionsAreMetForDrawing():
-			return
-		
+		isHandTool = self._isHandToolActive()
+
+		if isHandTool:
+			if not Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useForPreview"]:
+				return
+		else:
+			if not self.conditionsAreMetForDrawing():
+				return
+
 		layer = Glyphs.font.selectedLayers[0]
 		self.masterIds = self.getMasterIDs(layer)
 		scale = self.getScale()
-		handleSize = self.getHandleSize()
 		glyph = layer.parent
-		
+
 		if layer.layerId not in self.masterIds:
 			return
 
@@ -237,9 +273,12 @@ class showTrueTypeCurves(ReporterPlugin):
 			self.currentLayer = layer.layerId
 			self.currentGlyph = glyph.name
 
-		# Draw the quadratic paths
-		for path in self.trueTypePaths:
-			self.drawTrueTypeCurves(path, scale)
+		if isHandTool:
+			self.drawTrueTypePreview(self.trueTypePaths)
+		else:
+			# Draw the quadratic paths
+			for path in self.trueTypePaths:
+				self.drawTrueTypeCurves(path, scale)
 
 
 	@objc.python_method
