@@ -33,9 +33,7 @@ class showTrueTypeCurves(ReporterPlugin):
 				"com.harbortype.showTrueTypeCurves.useVariableConversion": 0,
 				"com.harbortype.showTrueTypeCurves.useForPreview": 0,
 			})
-		self.lastOperation = None
-		self.currentLayer = None
-		self.currentGlyph = None
+		self.trueTypePathsCache = {}  # {layerId: (lastOperation, paths)}
 
 
 	@objc.python_method
@@ -113,7 +111,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		oldSetting = bool(Glyphs.defaults[pref])
 		Glyphs.defaults[pref] = int(not oldSetting)
 		self.refreshView()
-		self.lastOperation = None
+		self.trueTypePathsCache = {}
 
 
 	@objc.python_method
@@ -171,6 +169,31 @@ class showTrueTypeCurves(ReporterPlugin):
 
 
 	@objc.python_method
+	def _getTrueTypePaths(self, layer):
+		""" Return TT-converted paths for layer, using a per-layer cache. """
+		glyph = layer.parent
+		cacheKey = (glyph.name, layer.layerId)
+		lastOp, paths = self.trueTypePathsCache.get(cacheKey, (None, None))
+		if glyph.lastOperation() != lastOp or paths is None:
+			if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useVariableConversion"]:
+				curveError = 0.6
+				if Glyphs.font.customParameters["TrueType Curve Error"] is not None:
+					curveError = float(Glyphs.font.customParameters["TrueType Curve Error"])
+				dummyGlyph = glyph.duplicate()
+				dummyGlyph.convertToCompatibleTrueTypeWithError_error_(curveError, None)
+				paths = dummyGlyph.layers[layer.layerId].paths
+				del Glyphs.font.glyphs[dummyGlyph.name]
+			else:
+				paths = []
+				for path in layer.paths:
+					dummyPath = path.copy()
+					dummyPath.convertToQuadratic()
+					paths.append(dummyPath)
+			self.trueTypePathsCache[cacheKey] = (glyph.lastOperation(), paths)
+		return paths
+
+
+	@objc.python_method
 	def drawTrueTypeCurves(self, path, scale):
 		radius = 2.5
 		radiusScale = radius / scale
@@ -224,28 +247,36 @@ class showTrueTypeCurves(ReporterPlugin):
 
 
 	@objc.python_method
-	def foreground(self, layer=None):
-		""" Draw TrueType preview on top of Glyphs' default preview """
-		if not Glyphs.font.selectedLayers:
-			return
+	def _drawTrueTypePreviewForLayer(self, layer):
+		""" Paint over Glyphs' default rendering and draw filled TT preview for layer. """
 		if not self._isPreviewToolActive():
 			return
 		if not Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useForPreview"]:
 			return
-		if not getattr(self, 'trueTypePaths', None):
+		masterIds = self.getMasterIDs(layer)
+		if layer.layerId not in masterIds:
 			return
-
-		layer = Glyphs.font.selectedLayers[0]
-
-		# Paint over Glyphs' default preview with the canvas background color
+		if not layer.paths:
+			return
+		ttPaths = self._getTrueTypePaths(layer)
+		if not ttPaths:
+			return
 		graphicView = Glyphs.font.currentTab.graphicView()
-		backgroundColor = graphicView.canvasColor()
-		backgroundColor.set()
-		bounds = layer.bounds
-		NSBezierPath.bezierPathWithRect_(bounds).fill()
+		graphicView.canvasColor().set()
+		NSBezierPath.bezierPathWithRect_(layer.bounds).fill()
+		self.drawTrueTypePreview(ttPaths)
 
-		# Draw TrueType preview on top
-		self.drawTrueTypePreview(self.trueTypePaths)
+	@objc.python_method
+	def foreground(self, layer=None):
+		""" Draw TrueType preview on top of Glyphs' default preview """
+		if not Glyphs.font.selectedLayers:
+			return
+		self._drawTrueTypePreviewForLayer(layer)
+
+	@objc.python_method
+	def inactiveLayerForeground(self, layer=None):
+		""" Draw TrueType preview for inactive layers in the tab """
+		self._drawTrueTypePreviewForLayer(layer)
 
 	@objc.python_method
 	def foregroundInViewCoords(self, layer=None):
@@ -269,10 +300,8 @@ class showTrueTypeCurves(ReporterPlugin):
 			if not self.conditionsAreMetForDrawing():
 				return
 
-		layer = Glyphs.font.selectedLayers[0]
 		self.masterIds = self.getMasterIDs(layer)
 		scale = self.getScale()
-		glyph = layer.parent
 
 		if layer.layerId not in self.masterIds:
 			return
@@ -280,29 +309,11 @@ class showTrueTypeCurves(ReporterPlugin):
 		if not layer.paths:
 			return
 
-		# Only converts to quadratic if the glyph or the current layer was changed
-		if glyph.lastOperation() != self.lastOperation or layer.layerId != self.currentLayer or glyph.name != self.currentGlyph:
-			if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useVariableConversion"]:
-				curveError = 0.6 # default
-				if Glyphs.font.customParameters["TrueType Curve Error"] is not None:
-					curveError = float(Glyphs.font.customParameters["TrueType Curve Error"])
-				dummyGlyph = glyph.duplicate()
-				dummyGlyph.convertToCompatibleTrueTypeWithError_error_(curveError, None)
-				self.trueTypePaths = dummyGlyph.layers[layer.layerId].paths
-				del(Glyphs.font.glyphs[dummyGlyph.name])
-			else:
-				self.trueTypePaths = []
-				for path in layer.paths:
-					dummyPath = path.copy()
-					dummyPath.convertToQuadratic()
-					self.trueTypePaths.append(dummyPath)
-			self.lastOperation = glyph.lastOperation()
-			self.currentLayer = layer.layerId
-			self.currentGlyph = glyph.name
+		ttPaths = self._getTrueTypePaths(layer)
 
 		if not isPreviewTool:
 			# Draw the quadratic paths
-			for path in self.trueTypePaths:
+			for path in ttPaths:
 				self.drawTrueTypeCurves(path, scale)
 
 
