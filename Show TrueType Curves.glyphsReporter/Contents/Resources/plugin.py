@@ -241,9 +241,10 @@ class showTrueTypeCurves(ReporterPlugin):
 		graphicView = self.controller.graphicView()
 		fillColor = graphicView.foregroundColor()
 		fillColor.set()
+		dummyLayer = GSLayer()
 		for path in paths:
-			bezier = path.bezierPath
-			bezier.fill()
+			dummyLayer.paths.append(path.copy())
+		dummyLayer.bezierPath.fill()
 
 
 	@objc.python_method
