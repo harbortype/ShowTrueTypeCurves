@@ -45,14 +45,14 @@ class showTrueTypeCurves(ReporterPlugin):
 				'name': Glyphs.localize({
 					'en': u"Show TrueType Curves:",
 					'pt': u"Exibir Curvas TrueType:",
-					}), 
+					}),
 				'action': None,
 			},
 			{
 				'name': Glyphs.localize({
-					'en': u"Draw outlines", 
-					'pt': u"Desenhar contornos", 
-					}), 
+					'en': u"Draw outlines",
+					'pt': u"Desenhar contornos",
+					}),
 				'action': self.toggleDrawOutlines_,
 				'state': Glyphs.defaults["com.harbortype.showTrueTypeCurves.drawOutlines"],
 			},
@@ -80,17 +80,17 @@ class showTrueTypeCurves(ReporterPlugin):
 		The event can tell you where the user had clicked.
 		'''
 		try:
-			
+
 			if self.generalContextMenus:
 				setUpMenuHelper(contextMenu, self.generalContextMenus, self)
-			
+
 			newSeparator = NSMenuItem.separatorItem()
 			contextMenu.addItem_(newSeparator)
-			
+
 			contextMenus = self.conditionalContextMenus()
 			if contextMenus:
 				setUpMenuHelper(contextMenu, contextMenus, self)
-		
+
 		except Exception as e:
 			NSLog(traceback.format_exc())
 
@@ -106,7 +106,7 @@ class showTrueTypeCurves(ReporterPlugin):
 	def toggleUseForPreview_(self, sender):
 		self.toggleSetting_("useForPreview")
 
-	
+
 	@objc.python_method
 	def toggleSetting_(self, prefName):
 		pref = "com.harbortype.showTrueTypeCurves.%s" % (prefName)
@@ -131,7 +131,7 @@ class showTrueTypeCurves(ReporterPlugin):
 	def getHandleSize(self):
 		""" Get the handle size in scale """
 		handleSizes = (5, 8, 12)
-		handleSizeIndex = Glyphs.handleSize 
+		handleSizeIndex = Glyphs.handleSize
 		handleSize = handleSizes[handleSizeIndex] * self.getScale() ** 0.1 # scaled diameter
 		return handleSize
 
@@ -199,7 +199,7 @@ class showTrueTypeCurves(ReporterPlugin):
 			line.moveToPoint_( NSPoint(node.position.x, node.position.y) )
 			line.lineToPoint_(offcurvePosition)
 			line.stroke()
-			
+
 			if node.type != OFFCURVE:
 				continue
 
@@ -208,7 +208,7 @@ class showTrueTypeCurves(ReporterPlugin):
 			circle.size = NSSize(diameter, diameter)
 			circle.origin = NSPoint(node.position.x - radiusScale , node.position.y - radiusScale)
 			NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(circle, radiusScale, radiusScale).fill()
-		
+
 
 	@objc.python_method
 	def drawTrueTypePreview(self, paths):
