@@ -159,11 +159,14 @@ class showTrueTypeCurves(ReporterPlugin):
 			return False
 
 
-	def _isHandToolActive(self):
+	def _isPreviewToolActive(self):
+		""" Returns True if hand or text tool is active (both show TT preview) """
 		currentController = self.controller.view().window().windowController()
 		if currentController:
 			tool = currentController.toolDrawDelegate()
-			return tool.isKindOfClass_(NSClassFromString("GlyphsToolHand"))
+			handToolIsActive = tool.isKindOfClass_(NSClassFromString("GlyphsToolHand"))
+			textToolIsActive = tool.isKindOfClass_(NSClassFromString("GlyphsToolText"))
+			return handToolIsActive or textToolIsActive
 		return False
 
 
@@ -221,6 +224,30 @@ class showTrueTypeCurves(ReporterPlugin):
 
 
 	@objc.python_method
+	def foreground(self, layer=None):
+		""" Draw TrueType preview on top of Glyphs' default preview """
+		if not Glyphs.font.selectedLayers:
+			return
+		if not self._isPreviewToolActive():
+			return
+		if not Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useForPreview"]:
+			return
+		if not getattr(self, 'trueTypePaths', None):
+			return
+
+		layer = Glyphs.font.selectedLayers[0]
+
+		# Paint over Glyphs' default preview with the canvas background color
+		graphicView = Glyphs.font.currentTab.graphicView()
+		backgroundColor = graphicView.canvasColor()
+		backgroundColor.set()
+		bounds = layer.bounds
+		NSBezierPath.bezierPathWithRect_(bounds).fill()
+
+		# Draw TrueType preview on top
+		self.drawTrueTypePreview(self.trueTypePaths)
+
+	@objc.python_method
 	def foregroundInViewCoords(self, layer=None):
 		""" Draw stuff on the screen """
 		pass
@@ -233,9 +260,9 @@ class showTrueTypeCurves(ReporterPlugin):
 		if not Glyphs.font.selectedLayers:
 			return
 
-		isHandTool = self._isHandToolActive()
+		isPreviewTool = self._isPreviewToolActive()
 
-		if isHandTool:
+		if isPreviewTool:
 			if not Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useForPreview"]:
 				return
 		else:
@@ -273,9 +300,7 @@ class showTrueTypeCurves(ReporterPlugin):
 			self.currentLayer = layer.layerId
 			self.currentGlyph = glyph.name
 
-		if isHandTool:
-			self.drawTrueTypePreview(self.trueTypePaths)
-		else:
+		if not isPreviewTool:
 			# Draw the quadratic paths
 			for path in self.trueTypePaths:
 				self.drawTrueTypeCurves(path, scale)
