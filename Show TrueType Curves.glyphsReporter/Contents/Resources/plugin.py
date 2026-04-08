@@ -16,7 +16,6 @@ from AppKit import NSFont, NSFontAttributeName, NSForegroundColorAttributeName
 #
 ###########################################################################################################
 
-HANDLE_SIZES = (5, 8, 12)   # maps to Glyphs handleSize 0/1/2
 DEFAULT_CURVE_ERROR = 0.6  # fallback for the "TrueType Curve Error" parameter (variable font conversion)
 MAX_DEVIATION = 0.7        # deviation threshold above which a layer is flagged as high-deviation
 NODE_RADIUS = 2.5           # display radius of off-curve node circles (unscaled)
@@ -160,15 +159,8 @@ class showTrueTypeCurves(ReporterPlugin):
 			currentTabView = app.font.currentTab
 			if currentTabView:
 				currentTabView.graphicView().setNeedsDisplay_(True)
-		except Exception as e:
+		except Exception:
 			pass
-
-
-	@objc.python_method
-	def getHandleSize(self):
-		""" Get the handle size in scale """
-		handleSize = HANDLE_SIZES[Glyphs.handleSize] * self.getScale() ** 0.1 # scaled diameter
-		return handleSize
 
 
 	@objc.python_method
@@ -288,7 +280,6 @@ class showTrueTypeCurves(ReporterPlugin):
 		LINE segments are skipped as they convert exactly.
 		"""
 		max_dev_sq = 0.0
-		print("TT deviation — %s / %s" % (layer.parent.name, layer.name))
 
 		for ps_path, tt_path in zip(layer.paths, ttPaths):
 			tt_nodes = tt_path.nodes
@@ -367,15 +358,10 @@ class showTrueTypeCurves(ReporterPlugin):
 
 				# For each PS sample, find the nearest TT sample within this segment's scope
 				seg_max_dev_sq = 0.0
-				seg_max_t = 0.0
-				for i, (cx, cy) in enumerate(self._sampleCubic(p0, p1, p2, p3, n)):
+				for cx, cy in self._sampleCubic(p0, p1, p2, p3, n):
 					min_dist_sq = min((cx - tx)**2 + (cy - ty)**2 for (tx, ty) in tt_local_samples)
 					if min_dist_sq > seg_max_dev_sq:
 						seg_max_dev_sq = min_dist_sq
-						seg_max_t = i / n
-				seg_dev = seg_max_dev_sq ** 0.5
-				print("  segment (%.0f, %.0f) → (%.0f, %.0f): max deviation = %.3f at t = %.2f" % (
-					p0.x, p0.y, p3.x, p3.y, seg_dev, seg_max_t))
 				if seg_max_dev_sq > max_dev_sq:
 					max_dev_sq = seg_max_dev_sq
 
@@ -400,7 +386,6 @@ class showTrueTypeCurves(ReporterPlugin):
 		radiusScale = NODE_RADIUS / scale
 		diameter = NODE_RADIUS * 2 / scale
 		lineWidth = 1 / scale
-		currentTab = Glyphs.font.currentTab
 
 		# Draw the outlines
 		if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.drawOutlines"]:
