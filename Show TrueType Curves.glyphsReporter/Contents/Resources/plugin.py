@@ -39,7 +39,7 @@ class showTrueTypeCurves(ReporterPlugin):
 				"com.harbortype.showTrueTypeCurves.useVariableConversion": 0,
 				"com.harbortype.showTrueTypeCurves.useForPreview": 0,
 			})
-		self.trueTypePathsCache = {}  # {(glyphName, layerId): (lastOperation, paths, deviation)}
+		self.trueTypePathsCache = {}  # {(glyphName, layerId): (lastOperation, paths, deviation_info)}
 
 
 	@objc.python_method
@@ -122,7 +122,7 @@ class showTrueTypeCurves(ReporterPlugin):
 				dummyPath = path.copy()
 				dummyPath.convertToQuadratic()
 				ttPaths.append(dummyPath)
-			dev = self._computeLayerDeviation(layer, ttPaths)
+			dev, _, _ = self._computeLayerDeviation(layer, ttPaths)
 			if dev >= MAX_DEVIATION:
 				deviations.append((dev, glyph.name))
 		if not deviations:
@@ -239,15 +239,15 @@ class showTrueTypeCurves(ReporterPlugin):
 
 	@objc.python_method
 	def _getLayerDeviation(self, layer):
-		""" Return the cached deviation for layer, computing it if not yet cached. """
+		""" Return the cached deviation_info (value, point, normal) for layer, computing it if not yet cached. """
 		paths = self._getTrueTypePaths(layer)
 		glyph = layer.parent
 		cacheKey = (glyph.name, layer.layerId)
-		lastOp, _, deviation = self.trueTypePathsCache.get(cacheKey, (None, None, None))
-		if deviation is None:
-			deviation = self._computeLayerDeviation(layer, paths)
-			self.trueTypePathsCache[cacheKey] = (lastOp, paths, deviation)
-		return deviation
+		lastOp, _, deviation_info = self.trueTypePathsCache.get(cacheKey, (None, None, None))
+		if deviation_info is None:
+			deviation_info = self._computeLayerDeviation(layer, paths)
+			self.trueTypePathsCache[cacheKey] = (lastOp, paths, deviation_info)
+		return deviation_info
 
 	@objc.python_method
 	def _sampleCubic(self, p0, p1, p2, p3, n):
@@ -288,8 +288,13 @@ class showTrueTypeCurves(ReporterPlugin):
 		preserved by convertToQuadratic). Distance is computed only between
 		matched PS/TT segments, avoiding cross-contour false matches.
 		LINE segments are skipped as they convert exactly.
+		Returns a (value, point, normal) tuple where point is the location of
+		the max deviation and normal is the unit vector perpendicular to the
+		curve at that point (pointing away from the TT approximation).
 		"""
 		max_dev_sq = 0.0
+		max_ps_point = None
+		max_tt_point = None
 
 		for ps_path, tt_path in zip(layer.paths, ttPaths):
 			tt_nodes = tt_path.nodes
@@ -368,26 +373,43 @@ class showTrueTypeCurves(ReporterPlugin):
 
 				# For each PS sample, find the nearest TT sample within this segment's scope
 				seg_max_dev_sq = 0.0
+				seg_max_ps = None
+				seg_max_tt = None
 				for cx, cy in self._sampleCubic(p0, p1, p2, p3, n):
-					min_dist_sq = min((cx - tx)**2 + (cy - ty)**2 for (tx, ty) in tt_local_samples)
-					if min_dist_sq > seg_max_dev_sq:
-						seg_max_dev_sq = min_dist_sq
+					nearest = min(tt_local_samples, key=lambda tt: (cx - tt[0])**2 + (cy - tt[1])**2)
+					dist_sq = (cx - nearest[0])**2 + (cy - nearest[1])**2
+					if dist_sq > seg_max_dev_sq:
+						seg_max_dev_sq = dist_sq
+						seg_max_ps = (cx, cy)
+						seg_max_tt = nearest
 				if seg_max_dev_sq > max_dev_sq:
 					max_dev_sq = seg_max_dev_sq
+					max_ps_point = seg_max_ps
+					max_tt_point = seg_max_tt
 
-		return max_dev_sq ** 0.5
+		if max_ps_point and max_tt_point:
+			dx = max_ps_point[0] - max_tt_point[0]
+			dy = max_ps_point[1] - max_tt_point[1]
+			length = (dx**2 + dy**2) ** 0.5
+			normal_dir = (dx / length, dy / length) if length > 0 else (0.0, 1.0)
+		else:
+			normal_dir = (0.0, 1.0)
+		return (max_dev_sq ** 0.5, max_ps_point or (0, 0), normal_dir)
 
 	@objc.python_method
-	def _drawDeviationLabel(self, deviation, layer, scale):
-		""" Draw the deviation value as a text label below the glyph. """
+	def _drawDeviationLabel(self, deviation, max_point, normal_dir, scale):
+		""" Draw the deviation value as a text label near the max deviation point. """
 		fontSize = 10.0 / scale
 		text = "%.1f" % deviation
 		attrs = {
 			NSFontAttributeName: NSFont.labelFontOfSize_(fontSize),
 			NSForegroundColorAttributeName: NSColor.colorWithCalibratedRed_green_blue_alpha_(0.8, 0.4, 0.0, 0.9),
 		}
-		bounds = layer.bounds
-		pt = NSPoint(bounds.origin.x, bounds.origin.y - fontSize * 1.5)
+		offset = 20.0 / scale ** 0.5
+		pt = NSPoint(
+			max_point[0] + normal_dir[0] * offset,
+			max_point[1] + normal_dir[1] * offset,
+		)
 		NSString.stringWithString_(text).drawAtPoint_withAttributes_(pt, attrs)
 
 
@@ -512,9 +534,9 @@ class showTrueTypeCurves(ReporterPlugin):
 			for path in ttPaths:
 				self.drawTrueTypeCurves(path, scale)
 			# Show deviation label when it exceeds the curve error threshold
-			deviation = self._getLayerDeviation(layer)
+			deviation, max_point, normal_dir = self._getLayerDeviation(layer)
 			if deviation >= MAX_DEVIATION:
-				self._drawDeviationLabel(deviation, layer, scale)
+				self._drawDeviationLabel(deviation, max_point, normal_dir, scale)
 
 
 	@objc.python_method
