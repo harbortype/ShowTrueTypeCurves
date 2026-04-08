@@ -454,19 +454,34 @@ class showTrueTypeCurves(ReporterPlugin):
 
 
 	@objc.python_method
-	def drawTrueTypePreview(self, paths):
-		graphicView = self.controller.graphicView()
-		fillColor = graphicView.foregroundColor()
-		fillColor.set()
+	def drawTrueTypePreview(self, layer, ttPaths, graphicView, scale):
+		"""
+		Erase the default PS fill with the exact PS bezier shape, then redraw
+		the TT-converted paths and any components using the foreground color.
+		Using layer.bezierPath (exact outline shape) instead of a bounding rect
+		avoids edge artifacts and handles glyphs that extend beyond their bounds.
+		The PS bezier is also stroked with the canvas color to cover the thin
+		anti-aliasing artifact left at its boundary after the fill.
+		"""
+		psBezier = layer.bezierPath
+		graphicView.canvasColor().set()
+		# Fill erases the default PS fill precisely
+		psBezier.fill()
+		# Stroke covers the anti-aliasing fringe at the PS path boundary
+		psBezier.setLineWidth_(1.0 / scale)
+		psBezier.stroke()
+		# Draw TT paths + original components on top (no stroke)
+		graphicView.foregroundColor().set()
 		dummyLayer = GSLayer()
-		for path in paths:
+		for path in ttPaths:
 			dummyLayer.paths.append(path.copy())
+		for comp in layer.components:
+			dummyLayer.components.append(comp.copy())
 		dummyLayer.bezierPath.fill()
-
 
 	@objc.python_method
 	def _drawTrueTypePreviewForLayer(self, layer):
-		""" Paint over Glyphs' default rendering and draw filled TT preview for layer. """
+		""" Erase default PS fill and draw TT preview for the given layer. """
 		if not self._isPreviewToolActive():
 			return
 		if not Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useForPreview"]:
@@ -474,26 +489,21 @@ class showTrueTypeCurves(ReporterPlugin):
 		masterIds = self.getMasterIDs(layer)
 		if layer.layerId not in masterIds:
 			return
-		if not layer.paths:
+		if not layer.paths and not layer.components:
 			return
-		ttPaths = self._getTrueTypePaths(layer)
-		if not ttPaths:
-			return
+		ttPaths = self._getTrueTypePaths(layer) if layer.paths else []
 		graphicView = Glyphs.font.currentTab.graphicView()
-		graphicView.canvasColor().set()
-		NSBezierPath.bezierPathWithRect_(layer.bounds).fill()
-		self.drawTrueTypePreview(ttPaths)
+		scale = self.getScale()
+		self.drawTrueTypePreview(layer, ttPaths, graphicView, scale)
 
 	@objc.python_method
 	def foreground(self, layer=None):
-		""" Draw TrueType preview on top of Glyphs' default preview """
-		if not Glyphs.font.selectedLayers:
-			return
+		""" Draw TrueType preview on top of Glyphs' default preview. """
 		self._drawTrueTypePreviewForLayer(layer)
 
 	@objc.python_method
 	def inactiveLayerForeground(self, layer=None):
-		""" Draw TrueType preview for inactive layers in the tab """
+		""" Draw TrueType preview for inactive layers in the tab. """
 		self._drawTrueTypePreviewForLayer(layer)
 
 	@objc.python_method
@@ -509,14 +519,12 @@ class showTrueTypeCurves(ReporterPlugin):
 		if not Glyphs.font.selectedLayers:
 			return
 
-		isPreviewTool = self._isPreviewToolActive()
+		# In preview mode all drawing happens in foreground/inactiveLayerForeground
+		if self._isPreviewToolActive():
+			return
 
-		if isPreviewTool:
-			if not Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useForPreview"]:
-				return
-		else:
-			if not self.conditionsAreMetForDrawing():
-				return
+		if not self.conditionsAreMetForDrawing():
+			return
 
 		masterIds = self.getMasterIDs(layer)
 		scale = self.getScale()
@@ -529,14 +537,13 @@ class showTrueTypeCurves(ReporterPlugin):
 
 		ttPaths = self._getTrueTypePaths(layer)
 
-		if not isPreviewTool:
-			# Draw the quadratic paths
-			for path in ttPaths:
-				self.drawTrueTypeCurves(path, scale)
-			# Show deviation label when it exceeds the curve error threshold
-			deviation, max_point, normal_dir = self._getLayerDeviation(layer)
-			if deviation >= MAX_DEVIATION:
-				self._drawDeviationLabel(deviation, max_point, normal_dir, scale)
+		# Draw the quadratic paths
+		for path in ttPaths:
+			self.drawTrueTypeCurves(path, scale)
+		# Show deviation label when it exceeds the curve error threshold
+		deviation, max_point, normal_dir = self._getLayerDeviation(layer)
+		if deviation >= MAX_DEVIATION:
+			self._drawDeviationLabel(deviation, max_point, normal_dir, scale)
 
 
 	@objc.python_method
