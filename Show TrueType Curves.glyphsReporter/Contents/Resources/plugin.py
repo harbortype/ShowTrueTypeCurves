@@ -126,6 +126,16 @@ class showTrueTypeCurves(ReporterPlugin):
 			if dev >= MAX_DEVIATION:
 				deviations.append((dev, glyph.name))
 		if not deviations:
+			Message(
+				Glyphs.localize({
+					'en': u"No problematic TT conversions found.",
+					'pt': u"Nenhuma conversão TT problemática encontrada.",
+				}),
+				Glyphs.localize({
+					'en': u"Find problematic TT conversions",
+					'pt': u"Reportar conversões TT problemáticas",
+				})
+			)
 			return
 		deviations.sort(reverse=True)
 		tab_text = "/" + "/".join(name for _, name in deviations)
