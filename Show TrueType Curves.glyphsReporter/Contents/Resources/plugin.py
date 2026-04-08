@@ -78,8 +78,8 @@ class showTrueTypeCurves(ReporterPlugin):
 			},
 			{
 				'name': Glyphs.localize({
-					'en': u"Report high-deviation glyphs",
-					'pt': u"Reportar glifos com alta divergência",
+					'en': u"Find problematic TT conversions",
+					'pt': u"Reportar conversões TT problemáticas",
 					}),
 				'action': self.reportHighDeviationGlyphs_,
 			},
