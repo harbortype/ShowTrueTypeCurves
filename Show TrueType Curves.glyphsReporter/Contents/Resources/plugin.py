@@ -484,8 +484,6 @@ class showTrueTypeCurves(ReporterPlugin):
 		""" Erase default PS fill and draw TT preview for the given layer. """
 		if not self._isPreviewToolActive():
 			return
-		if not Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useForPreview"]:
-			return
 		masterIds = self.getMasterIDs(layer)
 		if layer.layerId not in masterIds:
 			return
@@ -499,11 +497,15 @@ class showTrueTypeCurves(ReporterPlugin):
 	@objc.python_method
 	def foreground(self, layer=None):
 		""" Draw TrueType preview on top of Glyphs' default preview. """
+		if not Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useForPreview"]:
+			return
 		self._drawTrueTypePreviewForLayer(layer)
 
 	@objc.python_method
 	def inactiveLayerForeground(self, layer=None):
 		""" Draw TrueType preview for inactive layers in the tab. """
+		if not Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useForPreview"]:
+			return
 		self._drawTrueTypePreviewForLayer(layer)
 
 	@objc.python_method
