@@ -168,16 +168,10 @@ class showTrueTypeCurves(ReporterPlugin):
 
 	@objc.python_method
 	def _updateInactiveLayerForegroundDispatch(self):
-		""" Shadow inactiveLayerForeground with a no-op when the pref is off, to avoid
-		per-glyph Python call overhead in large text tabs. """
-		if self._useForPreview:
-			# Remove any shadow, restoring the class method
-			try:
-				del self.__dict__["inactiveLayerForeground"]
-			except KeyError:
-				pass
-		else:
-			self.__dict__["inactiveLayerForeground"] = lambda layer=None: None
+		""" Flip the ReporterPlugin dispatch flag so drawForegroundForInactiveLayer_options_
+		skips its body entirely when the preview pref is off. This avoids the ObjC->Python
+		bridge call for every inactive glyph in large text tabs. """
+		self._inactiveLayerForeground = bool(self._useForPreview)
 
 
 	@objc.python_method
