@@ -5,7 +5,7 @@ import traceback
 
 import objc
 from AppKit import NSApplication, NSBezierPath, NSColor, NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSPoint, NSRect, NSSize
-from Foundation import NSClassFromString, NSLog, NSMenuItem, NSString, NSUserDefaults
+from Foundation import NSClassFromString, NSMenuItem, NSString, NSUserDefaults
 from GlyphsApp import *
 from GlyphsApp.plugins import *
 
@@ -90,7 +90,6 @@ class showTrueTypeCurves(ReporterPlugin):
 			},
 		]
 
-	@objc.python_method
 	def addMenuItemsForEvent_toMenu_(self, event, contextMenu):
 		'''
 		The event can tell you where the user had clicked.
@@ -108,7 +107,7 @@ class showTrueTypeCurves(ReporterPlugin):
 				setUpMenuHelper(contextMenu, contextMenus, self)
 
 		except Exception as e:
-			NSLog(traceback.format_exc())
+			print(traceback.format_exc())
 
 
 	def reportHighDeviationGlyphs_(self, sender):
