@@ -1,10 +1,14 @@
 # encoding: utf-8
 from __future__ import division, print_function, unicode_literals
-import objc, traceback
+
+import traceback
+
+import objc
+from AppKit import NSApplication, NSBezierPath, NSColor, NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSPoint, NSRect, NSSize
+from Foundation import NSClassFromString, NSLog, NSMenuItem, NSString, NSUserDefaults
 from GlyphsApp import *
 from GlyphsApp.plugins import *
-from Foundation import NSMenuItem, NSString
-from AppKit import NSFont, NSFontAttributeName, NSForegroundColorAttributeName
+
 ###########################################################################################################
 #
 #
