@@ -41,7 +41,6 @@ class showTrueTypeCurves(ReporterPlugin):
 			})
 		self.trueTypePathsCache = {}  # {(glyphName, layerId): (lastOperation, paths, deviation_info)}
 		self._useForPreview = bool(Glyphs.defaults["com.harbortype.showTrueTypeCurves.useForPreview"])
-		self._updateInactiveLayerForegroundDispatch()
 
 
 	@objc.python_method
@@ -162,17 +161,8 @@ class showTrueTypeCurves(ReporterPlugin):
 		Glyphs.defaults[pref] = int(not oldSetting)
 		if prefName == "useForPreview":
 			self._useForPreview = not oldSetting
-			self._updateInactiveLayerForegroundDispatch()
 		self.refreshView()
 		self.trueTypePathsCache = {}
-
-	@objc.python_method
-	def _updateInactiveLayerForegroundDispatch(self):
-		""" Flip the ReporterPlugin dispatch flag so drawForegroundForInactiveLayer_options_
-		skips its body entirely when the preview pref is off. This avoids the ObjC->Python
-		bridge call for every inactive glyph in large text tabs. """
-		self._inactiveLayerForeground = bool(self._useForPreview)
-
 
 	@objc.python_method
 	def refreshView(self):
@@ -509,13 +499,6 @@ class showTrueTypeCurves(ReporterPlugin):
 	@objc.python_method
 	def foreground(self, layer=None):
 		""" Draw TrueType preview on top of Glyphs' default preview. """
-		if not self._useForPreview:
-			return
-		self._drawTrueTypePreviewForLayer(layer)
-
-	@objc.python_method
-	def inactiveLayerForeground(self, layer=None):
-		""" Draw TrueType preview for inactive layers in the tab. """
 		if not self._useForPreview:
 			return
 		self._drawTrueTypePreviewForLayer(layer)
