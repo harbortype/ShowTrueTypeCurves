@@ -91,20 +91,19 @@ class showTrueTypeCurves(ReporterPlugin):
 		]
 
 	def addMenuItemsForEvent_toMenu_(self, event, contextMenu):
-		'''
-		The event can tell you where the user had clicked.
-		'''
 		try:
-
 			if self.generalContextMenus:
 				setUpMenuHelper(contextMenu, self.generalContextMenus, self)
 
-			newSeparator = NSMenuItem.separatorItem()
-			contextMenu.addItem_(newSeparator)
+			contextMenu.addItem_(NSMenuItem.separatorItem())
 
-			contextMenus = self.conditionalContextMenus()
-			if contextMenus:
-				setUpMenuHelper(contextMenu, contextMenus, self)
+			for entry in self.conditionalContextMenus():
+				item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+					entry["name"], entry.get("action"), "")
+				item.setTarget_(self)
+				if "state" in entry:
+					item.setState_(entry["state"])
+				contextMenu.addItem_(item)
 
 		except Exception as e:
 			print(traceback.format_exc())
