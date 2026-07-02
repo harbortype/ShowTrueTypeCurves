@@ -478,7 +478,7 @@ class showTrueTypeCurves(ReporterPlugin):
 		graphicView.foregroundColor().set()
 		dummyLayer = GSLayer()
 		for path in ttPaths:
-			dummyLayer.paths.append(path.copy())
+			dummyLayer.shapes.append(path.copy())
 		for comp in layer.components:
 			dummyLayer.components.append(comp.copy())
 		dummyLayer.bezierPath.fill()
