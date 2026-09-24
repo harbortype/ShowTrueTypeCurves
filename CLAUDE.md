@@ -20,6 +20,7 @@ Key constants at top of file:
 - `NODE_RADIUS = 2.5` — display radius for off-curve node circles (unscaled)
 - `DEVIATION_SAMPLES_PER_UNIT = 1` — sample density for deviation computation
 - `DEVIATION_SAMPLES_MIN = 20` — floor sample count per segment
+- `DEVIATION_POLYLINE_TOLERANCE = 0.01` — max gap between a TT quadratic and its sample polyline, sets the TT sample count per quadratic
 
 ## Caching
 

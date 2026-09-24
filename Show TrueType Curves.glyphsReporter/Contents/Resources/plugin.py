@@ -1,6 +1,7 @@
 # encoding: utf-8
 from __future__ import division, print_function, unicode_literals
 
+import math
 import traceback
 
 import objc
@@ -25,6 +26,7 @@ MAX_DEVIATION = 0.7        # deviation threshold above which a layer is flagged 
 NODE_RADIUS = 2.5           # display radius of off-curve node circles (unscaled)
 DEVIATION_SAMPLES_PER_UNIT = 1  # minimum sample density: one sample every 1 unit
 DEVIATION_SAMPLES_MIN = 20        # floor so very short segments still get decent coverage
+DEVIATION_POLYLINE_TOLERANCE = 0.01  # max gap between a TT quadratic and its sample polyline (units)
 
 
 
@@ -278,6 +280,18 @@ class showTrueTypeCurves(ReporterPlugin):
 		return pts
 
 	@objc.python_method
+	def _quadSamples(self, p0, p1, p2):
+		"""
+		Compute the sample count for a quadratic Bézier so the polyline through
+		its samples stays within DEVIATION_POLYLINE_TOLERANCE of the curve.
+		With n even steps in t, the largest gap is |p0 - 2*p1 + p2| / (4 * n**2).
+		"""
+		dx = p0.x - 2*p1.x + p2.x
+		dy = p0.y - 2*p1.y + p2.y
+		bend = (dx*dx + dy*dy) ** 0.5
+		return max(1, int(math.ceil((bend / (4 * DEVIATION_POLYLINE_TOLERANCE)) ** 0.5)))
+
+	@objc.python_method
 	def _segmentSamples(self, p0, p3):
 		""" Compute an adaptive sample count based on the chord length of a segment. """
 		chord = ((p3.x - p0.x)**2 + (p3.y - p0.y)**2) ** 0.5
@@ -353,23 +367,16 @@ class showTrueTypeCurves(ReporterPlugin):
 						break
 					i = (i + 1) % n_tt
 
-				# Sample count scales with chord length; computed once and shared by
-				# both the TT sub-segment sampling and the cubic PS sampling below.
-				n = self._segmentSamples(p0, p3)
-
-				# Parse TT nodes into quadratic sub-segments and sample them.
+				# Parse TT nodes into quadratic sub-segments.
 				# One cubic can map to several quadratics; implied on-curves are inserted
 				# between consecutive off-curves per TrueType spline rules.
-				tt_local_samples = []
+				tt_quads = []
 				curr_p0 = p0
 				off_pts = []
 				for tt_node in tt_segment_nodes:
 					if tt_node.type == OFFCURVE:
 						off_pts.append(tt_node.position)
 					elif tt_node.type == QCURVE:
-						if not off_pts:
-							curr_p0 = tt_node.position
-							continue
 						curr = curr_p0
 						for j, off in enumerate(off_pts):
 							if j < len(off_pts) - 1:
@@ -378,12 +385,19 @@ class showTrueTypeCurves(ReporterPlugin):
 									(off.x + next_off.x) * 0.5,
 									(off.y + next_off.y) * 0.5,
 								)
-								tt_local_samples.extend(self._sampleQuad(curr, off, implied, n))
+								tt_quads.append((curr, off, implied))
 								curr = implied
 							else:
-								tt_local_samples.extend(self._sampleQuad(curr, off, tt_node.position, n))
+								tt_quads.append((curr, off, tt_node.position))
 						off_pts = []
 						curr_p0 = tt_node.position
+
+				# Sample each quadratic just densely enough for its polyline to stay within
+				# DEVIATION_POLYLINE_TOLERANCE of the curve. Shared end points are kept once.
+				tt_local_samples = []
+				for q0, q1, q2 in tt_quads:
+					samples = self._sampleQuad(q0, q1, q2, self._quadSamples(q0, q1, q2))
+					tt_local_samples.extend(samples[1:] if tt_local_samples else samples)
 
 				if not tt_local_samples:
 					continue
@@ -400,6 +414,7 @@ class showTrueTypeCurves(ReporterPlugin):
 				seg_max_ps = None
 				seg_max_tt = None
 				j = 0
+				n = self._segmentSamples(p0, p3)
 				for cx, cy in self._sampleCubic(p0, p1, p2, p3, n):
 					best_sq, best_pt = self._pointToSegmentDistSq(cx, cy, tt_local_samples[j], tt_local_samples[j + 1])
 					while j < last_seg:
