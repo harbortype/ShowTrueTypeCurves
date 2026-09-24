@@ -27,7 +27,7 @@ Key constants at top of file:
 
 ## Deviation computation
 
-`_computeLayerDeviation(layer, ttPaths)` matches each cubic PS segment to its corresponding TT quadratic segment(s) via shared on-curve endpoints, samples both, and computes max point-to-point distance. Returns `(value, point, normal_dir)`.
+`_computeLayerDeviation(layer, ttPaths)` matches each cubic PS segment to its corresponding TT quadratic segment(s) via shared on-curve endpoints, samples both, and computes the max distance from each PS sample to the TT sample polyline. Returns `(value, point, normal_dir)`.
 
 The label uses `offset = 20.0 / scale**0.5` for screen-space distance (see feedback memory on K/scale**0.5 pattern).
 

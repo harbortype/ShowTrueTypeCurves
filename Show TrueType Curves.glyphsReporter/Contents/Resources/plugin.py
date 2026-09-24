@@ -284,6 +284,16 @@ class showTrueTypeCurves(ReporterPlugin):
 		return max(DEVIATION_SAMPLES_MIN, int(chord * DEVIATION_SAMPLES_PER_UNIT))
 
 	@objc.python_method
+	def _pointToSegmentDistSq(self, cx, cy, a, b):
+		""" Return (squared distance, nearest point) from (cx, cy) to the line segment from a to b. """
+		ax, ay = a
+		dx, dy = b[0] - ax, b[1] - ay
+		len_sq = dx*dx + dy*dy
+		t = 0.0 if len_sq == 0 else max(0.0, min(1.0, ((cx - ax)*dx + (cy - ay)*dy) / len_sq))
+		px, py = ax + t*dx, ay + t*dy
+		return (cx - px)**2 + (cy - py)**2, (px, py)
+
+	@objc.python_method
 	def _computeLayerDeviation(self, layer, ttPaths):
 		"""
 		Compute approximate max PS→TT deviation using segment-local matching.
@@ -292,11 +302,14 @@ class showTrueTypeCurves(ReporterPlugin):
 		preserved by convertToQuadratic). Distance is computed only between
 		matched PS/TT segments, avoiding cross-contour false matches.
 		LINE segments are skipped as they convert exactly.
+		Values at or above MAX_DEVIATION are exact. Below it, a segment with a
+		very sharp turn can report a slightly high value.
 		Returns a (value, point, normal) tuple where point is the location of
 		the max deviation and normal is the unit vector perpendicular to the
 		curve at that point (pointing away from the TT approximation).
 		"""
 		max_dev_sq = 0.0
+		max_deviation_sq = MAX_DEVIATION ** 2
 		max_ps_point = None
 		max_tt_point = None
 
@@ -375,17 +388,37 @@ class showTrueTypeCurves(ReporterPlugin):
 				if not tt_local_samples:
 					continue
 
-				# For each PS sample, find the nearest TT sample within this segment's scope
+				# For each PS sample, find the nearest point on the TT polyline within this
+				# segment's scope. Measuring to the polyline (not to the nearest sample) avoids
+				# false deviations where TT samples are far apart, e.g. near long off-curves.
+				# Both curves run in the same direction, so the nearest TT segment only moves
+				# forward: walk ahead from the previous match while the distance keeps shrinking.
+				last_seg = len(tt_local_samples) - 2
+				if last_seg < 0:
+					continue
 				seg_max_dev_sq = 0.0
 				seg_max_ps = None
 				seg_max_tt = None
+				j = 0
 				for cx, cy in self._sampleCubic(p0, p1, p2, p3, n):
-					nearest = min(tt_local_samples, key=lambda tt: (cx - tt[0])**2 + (cy - tt[1])**2)
-					dist_sq = (cx - nearest[0])**2 + (cy - nearest[1])**2
-					if dist_sq > seg_max_dev_sq:
-						seg_max_dev_sq = dist_sq
+					best_sq, best_pt = self._pointToSegmentDistSq(cx, cy, tt_local_samples[j], tt_local_samples[j + 1])
+					while j < last_seg:
+						next_sq, next_pt = self._pointToSegmentDistSq(cx, cy, tt_local_samples[j + 1], tt_local_samples[j + 2])
+						if next_sq > best_sq:
+							break
+						best_sq, best_pt = next_sq, next_pt
+						j += 1
+					# On sharp turns the walk can stop too early. When the result could be
+					# flagged, check the whole polyline and move the walk to the true match.
+					if best_sq >= max_deviation_sq and best_sq > seg_max_dev_sq:
+						for k in range(last_seg + 1):
+							d_sq, pt = self._pointToSegmentDistSq(cx, cy, tt_local_samples[k], tt_local_samples[k + 1])
+							if d_sq < best_sq:
+								best_sq, best_pt, j = d_sq, pt, k
+					if best_sq > seg_max_dev_sq:
+						seg_max_dev_sq = best_sq
 						seg_max_ps = (cx, cy)
-						seg_max_tt = nearest
+						seg_max_tt = best_pt
 				if seg_max_dev_sq > max_dev_sq:
 					max_dev_sq = seg_max_dev_sq
 					max_ps_point = seg_max_ps
