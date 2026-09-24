@@ -4,7 +4,7 @@ from __future__ import division, print_function, unicode_literals
 import traceback
 
 import objc
-from AppKit import NSApplication, NSBezierPath, NSColor, NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSPoint, NSRect, NSSize
+from AppKit import NSApplication, NSBezierPath, NSColor, NSFont, NSFontAttributeName, NSForegroundColorAttributeName, NSPoint, NSRect
 from Foundation import NSClassFromString, NSMenuItem, NSString, NSUserDefaults
 from GlyphsApp import *
 from GlyphsApp.plugins import *
@@ -463,31 +463,28 @@ class showTrueTypeCurves(ReporterPlugin):
 			NSColor.colorWithCalibratedRed_green_blue_alpha_(.8, .1, .1, .8).set()
 			outline.stroke()
 
-		# Get the nodes
-		for node in path.nodes:
-			nextNode = node.nextNode
-			x = node.position.x
-			y = node.position.y
-			dx = nextNode.position.x - x
-			dy = nextNode.position.y - y
-			offcurvePosition = NSPoint(x+dx, y+dy)
+		# Collect all handle lines and off-curve circles into two paths,
+		# so they are drawn with one stroke and one fill.
+		nodes = path.nodes
+		positions = [node.position for node in nodes]
+		isOffcurve = [node.type == OFFCURVE for node in nodes]
+		handles = NSBezierPath.bezierPath()
+		handles.setLineWidth_(lineWidth)
+		circles = NSBezierPath.bezierPath()
+		for i, pos in enumerate(positions):
+			nextIndex = (i + 1) % len(positions)
+			# Lines between two on-curve nodes are already part of the outline
+			if isOffcurve[i] or isOffcurve[nextIndex]:
+				handles.moveToPoint_(pos)
+				handles.lineToPoint_(positions[nextIndex])
+			if isOffcurve[i]:
+				circles.appendBezierPathWithOvalInRect_(
+					NSRect((pos.x - radiusScale, pos.y - radiusScale), (diameter, diameter))
+				)
 
-			# Draw line
-			NSColor.colorWithCalibratedRed_green_blue_alpha_(.8, .8, .8, .8).set()
-			line = NSBezierPath.bezierPath()
-			line.setLineWidth_(lineWidth)
-			line.moveToPoint_( NSPoint(node.position.x, node.position.y) )
-			line.lineToPoint_(offcurvePosition)
-			line.stroke()
-
-			if node.type != OFFCURVE:
-				continue
-
-			# Draw nodes
-			circle = NSRect()
-			circle.size = NSSize(diameter, diameter)
-			circle.origin = NSPoint(node.position.x - radiusScale , node.position.y - radiusScale)
-			NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(circle, radiusScale, radiusScale).fill()
+		NSColor.colorWithCalibratedRed_green_blue_alpha_(.8, .8, .8, .8).set()
+		handles.stroke()
+		circles.fill()
 
 
 	@objc.python_method
