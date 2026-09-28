@@ -45,7 +45,7 @@ class showTrueTypeCurves(ReporterPlugin):
 				"com.harbortype.showTrueTypeCurves.useVariableConversion": 0,
 				"com.harbortype.showTrueTypeCurves.useForPreview": 0,
 			})
-		self.trueTypePathsCache = {}  # {(glyphName, layerId): (lastOperation, paths, deviation_info)}
+		self.trueTypePathsCache = {}  # {(glyphName, layerId, isBackground): (lastOperation, paths, deviation_info)}
 		self._useForPreview = bool(Glyphs.defaults["com.harbortype.showTrueTypeCurves.useForPreview"])
 
 
@@ -220,10 +220,15 @@ class showTrueTypeCurves(ReporterPlugin):
 
 
 	@objc.python_method
+	def _cacheKey(self, layer):
+		""" A background layer shares its layerId with the foreground, so the layer type is part of the key. """
+		return (layer.parent.name, layer.layerId, isinstance(layer, GSBackgroundLayer))
+
+	@objc.python_method
 	def _getTrueTypePaths(self, layer):
 		""" Return TT-converted paths for layer, using a per-layer cache. """
 		glyph = layer.parent
-		cacheKey = (glyph.name, layer.layerId)
+		cacheKey = self._cacheKey(layer)
 		lastOp, paths, deviation = self.trueTypePathsCache.get(cacheKey, (None, None, None))
 		if glyph.lastOperation() != lastOp or paths is None:
 			if Glyphs.boolDefaults["com.harbortype.showTrueTypeCurves.useVariableConversion"]:
@@ -247,8 +252,7 @@ class showTrueTypeCurves(ReporterPlugin):
 	def _getLayerDeviation(self, layer):
 		""" Return the cached deviation_info (value, point, normal) for layer, computing it if not yet cached. """
 		paths = self._getTrueTypePaths(layer)
-		glyph = layer.parent
-		cacheKey = (glyph.name, layer.layerId)
+		cacheKey = self._cacheKey(layer)
 		lastOp, _, deviation_info = self.trueTypePathsCache.get(cacheKey, (None, None, None))
 		if deviation_info is None:
 			deviation_info = self._computeLayerDeviation(layer, paths)

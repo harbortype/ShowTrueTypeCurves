@@ -24,7 +24,7 @@ Key constants at top of file:
 
 ## Caching
 
-`self.trueTypePathsCache` is a dict keyed by `(glyphName, layerId)`, storing `(lastOperation, paths, deviation_info)`. Cache is invalidated when `glyph.lastOperation()` changes, or when a setting is toggled.
+`self.trueTypePathsCache` is a dict keyed by `(glyphName, layerId, isBackground)`, storing `(lastOperation, paths, deviation_info)`. Cache is invalidated when `glyph.lastOperation()` changes, or when a setting is toggled.
 
 ## Deviation computation
 
