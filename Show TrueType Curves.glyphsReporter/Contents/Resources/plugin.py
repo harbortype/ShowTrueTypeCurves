@@ -122,12 +122,13 @@ class showTrueTypeCurves(ReporterPlugin):
 			if not layer or not layer.paths:
 				continue
 			# Always use static conversion for the font-wide scan (variable is too slow)
+			psLayer = self._cornerDecomposedLayer(layer)
 			ttPaths = []
-			for path in layer.paths:
+			for path in psLayer.paths:
 				dummyPath = path.copy()
 				dummyPath.convertToQuadratic()
 				ttPaths.append(dummyPath)
-			dev, _, _ = self._computeLayerDeviation(layer, ttPaths)
+			dev, _, _ = self._computeLayerDeviation(psLayer, ttPaths)
 			if dev >= MAX_DEVIATION:
 				deviations.append((dev, glyph.name))
 		if not deviations:
@@ -220,6 +221,16 @@ class showTrueTypeCurves(ReporterPlugin):
 
 
 	@objc.python_method
+	def _cornerDecomposedLayer(self, layer):
+		""" Return a copy of layer with corner and cap components applied to its paths, or layer itself if it has none. """
+		if not layer.hasCorners():
+			return layer
+		layerCopy = layer.copy()
+		layerCopy.parent = layer.parent  # the copy needs the font to find the _corner glyphs
+		layerCopy.decomposeCorners()
+		return layerCopy
+
+	@objc.python_method
 	def _cacheKey(self, layer):
 		""" A background layer shares its layerId with the foreground, so the layer type is part of the key. """
 		return (layer.parent.name, layer.layerId, isinstance(layer, GSBackgroundLayer))
@@ -236,12 +247,16 @@ class showTrueTypeCurves(ReporterPlugin):
 				if Glyphs.font.customParameters["TrueType Curve Error"] is not None:
 					curveError = float(Glyphs.font.customParameters["TrueType Curve Error"])
 				dummyGlyph = glyph.duplicate()
+				for dummyLayer in dummyGlyph.layers:
+					if dummyLayer.hasCorners():
+						dummyLayer.decomposeCorners()
 				dummyGlyph.convertToCompatibleTrueTypeWithError_error_(curveError, None)
 				paths = dummyGlyph.layers[layer.layerId].paths
 				del Glyphs.font.glyphs[dummyGlyph.name]
 			else:
+				psLayer = self._cornerDecomposedLayer(layer)  # keep a reference, or the copy is freed before its paths are read
 				paths = []
-				for path in layer.paths:
+				for path in psLayer.paths:
 					dummyPath = path.copy()
 					dummyPath.convertToQuadratic()
 					paths.append(dummyPath)
@@ -255,7 +270,8 @@ class showTrueTypeCurves(ReporterPlugin):
 		cacheKey = self._cacheKey(layer)
 		lastOp, _, deviation_info = self.trueTypePathsCache.get(cacheKey, (None, None, None))
 		if deviation_info is None:
-			deviation_info = self._computeLayerDeviation(layer, paths)
+			psLayer = self._cornerDecomposedLayer(layer)
+			deviation_info = self._computeLayerDeviation(psLayer, paths)
 			self.trueTypePathsCache[cacheKey] = (lastOp, paths, deviation_info)
 		return deviation_info
 
@@ -536,7 +552,9 @@ class showTrueTypeCurves(ReporterPlugin):
 			dummyLayer.shapes.append(path.copy())
 		for comp in layer.components:
 			dummyLayer.components.append(comp.copy())
-		dummyLayer.bezierPath.fill()
+		ttBezier = dummyLayer.bezierPath
+		if ttBezier is not None:
+			ttBezier.fill()
 
 	@objc.python_method
 	def _drawTrueTypePreviewForLayer(self, layer):
