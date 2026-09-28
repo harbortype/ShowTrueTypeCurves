@@ -374,13 +374,19 @@ class showTrueTypeCurves(ReporterPlugin):
 				# Parse TT nodes into quadratic sub-segments.
 				# One cubic can map to several quadratics; implied on-curves are inserted
 				# between consecutive off-curves per TrueType spline rules.
+				# The converter can also turn a nearly straight part of a curve into a LINE.
 				tt_quads = []
 				curr_p0 = p0
 				off_pts = []
 				for tt_node in tt_segment_nodes:
 					if tt_node.type == OFFCURVE:
 						off_pts.append(tt_node.position)
-					elif tt_node.type == QCURVE:
+					else:
+						pos = tt_node.position
+						if not off_pts:
+							# Straight piece, stored as a quadratic with its control point halfway
+							midpoint = NSPoint((curr_p0.x + pos.x) * 0.5, (curr_p0.y + pos.y) * 0.5)
+							tt_quads.append((curr_p0, midpoint, pos))
 						curr = curr_p0
 						for j, off in enumerate(off_pts):
 							if j < len(off_pts) - 1:
