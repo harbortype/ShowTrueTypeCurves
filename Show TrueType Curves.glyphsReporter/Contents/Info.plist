@@ -13,15 +13,15 @@
 	<key>CFBundleName</key>
 	<string>Show TrueType Curves</string>
 	<key>CFBundleVersion</key>
-	<string>9</string>
+	<string>10</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.6</string>
+	<string>1.7</string>
 	<key>UpdateFeedURL</key>
 	<string>https://raw.githubusercontent.com/harbortype/ShowTrueTypeCurves/main/Show%20TrueType%20Curves.glyphsReporter/Contents/Info.plist</string>
 	<key>productPageURL</key>
 	<string>https://github.com/harbortype/ShowTrueTypeCurves</string>
 	<key>productReleaseNotes</key>
-	<string>Glyphs 4 support.</string>
+	<string>The deviation check is more accurate and about eight times faster. Faster drawing of handles and nodes. Bug fixes.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright, Harbor Type, 2021</string>
 	<key>NSPrincipalClass</key>
